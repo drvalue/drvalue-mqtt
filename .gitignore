@@ -1,0 +1,16 @@
+# Node.js
+node_modules/
+package-lock.json
+
+# Java / Gradle
+.gradle/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Logs
+*.log
