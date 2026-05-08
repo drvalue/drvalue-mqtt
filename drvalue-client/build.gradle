@@ -1,0 +1,78 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+// JitPack은 -Pversion=... 으로 태그를 주입하므로 그걸 우선.
+// findProperty('version')은 미설정 시 'unspecified'를 반환하므로 명시 처리.
+def vProp = project.findProperty('version')
+version = (vProp && vProp != 'unspecified') ? vProp : '1.0.0'
+
+def gProp = project.findProperty('group')
+group = (gProp && gProp != '' && gProp != 'unspecified') ? gProp : 'com.drvalue'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+    withJavadocJar()
+    withSourcesJar()
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // MQTT 클라이언트 — 학생 프로젝트로 transitive
+    api 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
+
+    // JSON — Spring Boot 프로젝트는 이미 갖고 있음. transitive로 전달.
+    api 'com.fasterxml.jackson.core:jackson-databind:2.17.2'
+    api 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.17.2'
+
+    // 로깅 — Spring Boot가 가져오므로 compileOnly
+    compileOnly 'org.slf4j:slf4j-api:2.0.13'
+
+    // Spring 연동 클래스 — 옵션. 학생이 Spring Boot면 자동 동작.
+    compileOnly 'org.springframework.boot:spring-boot:3.3.0'
+    compileOnly 'org.springframework.boot:spring-boot-autoconfigure:3.3.0'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.slf4j:slf4j-simple:2.0.13'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// Javadoc UTF-8 (한글 주석)
+tasks.withType(Javadoc).configureEach {
+    options.encoding = 'UTF-8'
+    options.addStringOption('Xdoclint:none', '-quiet')
+}
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifactId = 'drvalue-client'
+            pom {
+                name = 'DrValue MQTT Client'
+                description = 'DrValue 시뮬레이터 통합용 Java/Spring 클라이언트 (REST 등록 + MQTT 구독)'
+            }
+        }
+    }
+}
+
+tasks.named('jar') {
+    archiveBaseName = 'drvalue-client'
+    manifest {
+        attributes(
+            'Implementation-Title': 'DrValue Client',
+            'Implementation-Version': version
+        )
+    }
+}
