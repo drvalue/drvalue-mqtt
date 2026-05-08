@@ -1,4 +1,5 @@
-const { deviceStates } = require("./store");
+const store = require("./store");
+const { deviceStates, persistState } = store;
 
 const SEOUL_LAT = 37.5665;
 const SEOUL_LNG = 126.978;
@@ -15,6 +16,13 @@ function clamp(val, min, max) {
 }
 
 function initDeviceState(deviceId) {
+  // 이미 hydrate된 상태(재시작 후 복원)면 그대로 사용
+  const existing = deviceStates.get(deviceId);
+  if (existing) {
+    existing.intervalId = null;
+    existing.emergencyIntervalId = null;
+    return existing;
+  }
   const state = {
     battery: 100,
     stepCount: 0,
@@ -50,7 +58,12 @@ function generateReport(deviceId, tenantId, modelName) {
   const torsoAngleMin = clamp(+(torsoAngleMean - Math.random() * 5).toFixed(1), 0, 50);
   const bentDuration = Math.floor(Math.random() * 120);
 
-  state.usageTimeSeconds += 5;
+  state.usageTimeSeconds += Math.round((state.intervalMs || 5000) / 1000);
+
+  // 누적 상태 영속화 (fire-and-forget)
+  persistState(deviceId, state).catch((err) =>
+    console.error("[DB] state persist 오류:", err.code || err.message)
+  );
 
   return {
     type: "report",

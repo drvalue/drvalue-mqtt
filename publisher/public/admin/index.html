@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DrValue 강사 모니터링</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+KR:wght@400;600;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>DrValue 모니터링 <span>강사 전용</span></h1>
+  <span class="pill pill-info" id="lastUpdate">방금 업데이트</span>
+  <span class="pill pill-ok" id="healthPill">● 정상</span>
+</header>
+
+<main>
+
+  <div class="row row-totals">
+    <div class="card">
+      <h2>총 디바이스</h2>
+      <div class="big" id="totalDevices">—</div>
+      <div class="sub">현재 발행 중</div>
+    </div>
+    <div class="card">
+      <h2>총 메세지</h2>
+      <div class="big" id="totalMessages">—</div>
+      <div class="sub">전체 누적</div>
+    </div>
+    <div class="card">
+      <h2>최근 5분 메세지</h2>
+      <div class="big" id="recentMessages">—</div>
+      <div class="sub">활성도 지표</div>
+    </div>
+    <div class="card">
+      <h2>응급 이벤트</h2>
+      <div class="big big-red" id="totalEmergencies">—</div>
+      <div class="sub">전체 누적</div>
+    </div>
+  </div>
+
+  <div class="row row-tenants" id="tenantGrid"></div>
+
+  <div class="row row-2">
+    <div class="card">
+      <h2>메세지 흐름 — 최근 60분 (분당)</h2>
+      <div class="chart-wrap"><canvas id="tsChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>응급 이벤트 — 최근 20건</h2>
+      <div id="emergencyList"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>디바이스 상세</h2>
+    <div class="scroll-x">
+      <table id="deviceTable">
+        <thead><tr>
+          <th>Tenant</th><th>Device</th><th>Model</th><th>Interval</th>
+          <th>Battery</th><th>Steps</th><th>LMA</th><th>Calories</th>
+          <th>Usage(s)</th><th>Updated</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>실시간 메세지 로그 — 최근 100건</h2>
+    <div class="filters" id="logFilters">
+      <button data-filter="all" class="active">전체</button>
+      <button data-filter="report">report</button>
+      <button data-filter="poweron">poweron</button>
+      <button data-filter="emergency">emergency</button>
+      <button data-filter="tenant-1">tenant-1</button>
+      <button data-filter="tenant-2">tenant-2</button>
+      <button data-filter="tenant-3">tenant-3</button>
+      <button data-filter="tenant-4">tenant-4</button>
+      <button data-filter="tenant-5">tenant-5</button>
+    </div>
+    <div class="log-list" id="logList"></div>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

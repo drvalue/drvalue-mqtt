@@ -14,3 +14,9 @@ build/
 
 # Logs
 *.log
+
+# Secrets / generated
+.env
+credentials.txt
+docker/mysql/init/*.sql
+!docker/mysql/init/.gitkeep
