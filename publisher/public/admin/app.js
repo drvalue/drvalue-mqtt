@@ -36,10 +36,22 @@ function fmtTime(iso) {
   return new Date(iso).toLocaleTimeString("ko-KR", { hour12: false });
 }
 
-async function api(path) {
-  const res = await fetch(API + path, { credentials: "include" });
-  if (!res.ok) throw new Error(res.status + " " + path);
-  return res.json();
+async function api(path, init) {
+  const opts = { credentials: "include", ...(init || {}) };
+  if (opts.body && typeof opts.body !== "string") {
+    opts.body = JSON.stringify(opts.body);
+    opts.headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
+  }
+  const res = await fetch(API + path, opts);
+  let data = null;
+  try { data = await res.json(); } catch (_) { /* ignore */ }
+  if (!res.ok) {
+    const msg = (data && data.error) || (res.status + " " + path);
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
+  }
+  return data;
 }
 
 // ---------- 통계 + 팀 카드 ----------
@@ -91,6 +103,18 @@ async function refreshStats() {
 
 function deviceRow(r) {
   const td = (val, mono) => el("td", { class: mono ? "mono" : "", text: val == null ? "—" : String(val) });
+
+  const editBtn = el("button", { class: "btn-icon", text: "수정" });
+  editBtn.addEventListener("click", () => openEditModal(r));
+
+  const delBtn = el("button", { class: "btn-icon danger", text: "삭제" });
+  delBtn.addEventListener("click", () => confirmDeleteDevice(r));
+
+  const actionsTd = el("td", {
+    class: "td-actions",
+    children: [editBtn, delBtn],
+  });
+
   return el("tr", {
     children: [
       td(r.tenantId, true),
@@ -103,6 +127,7 @@ function deviceRow(r) {
       td(r.calories != null ? Number(r.calories).toFixed(1) : null, true),
       td(r.usageTimeSeconds, true),
       td(r.updatedAt ? fmtTime(r.updatedAt) : null, true),
+      actionsTd,
     ],
   });
 }
@@ -116,10 +141,10 @@ async function refreshDevices() {
       const tr = el("tr", {
         children: [el("td", {
           class: "empty",
-          text: "등록된 디바이스가 없습니다",
+          text: "등록된 디바이스가 없습니다 — '+ 디바이스 추가'로 만들어보세요",
         })],
       });
-      tr.firstChild.colSpan = 10;
+      tr.firstChild.colSpan = 11;
       tbody.appendChild(tr);
       return;
     }
@@ -285,3 +310,220 @@ async function tick() {
 
 tick();
 setInterval(tick, REFRESH_MS);
+
+// ========== 디바이스 CRUD ==========
+
+const modal = $("#deviceModal");
+const modalTitle = $("#modalTitle");
+const modalSubmit = $("#modalSubmit");
+const modalError = $("#modalError");
+const modalForm = $("#deviceForm");
+const fieldTenant = $("#fieldTenant");
+const fieldDeviceId = $("#fieldDeviceId");
+const fieldModelName = $("#fieldModelName");
+const fieldIntervalMs = $("#fieldIntervalMs");
+
+const confirmModal = $("#confirmModal");
+const confirmTitle = $("#confirmTitle");
+const confirmMessage = $("#confirmMessage");
+const confirmOk = $("#confirmOk");
+const confirmCancel = $("#confirmCancel");
+
+let modalMode = "create"; // "create" | "edit"
+let editTarget = null;
+let presetTenants = ["tenant-1","tenant-2","tenant-3","tenant-4","tenant-5"];
+
+async function loadPresetTenants() {
+  try {
+    const data = await api("/preset-tenants");
+    if (data && Array.isArray(data.tenants) && data.tenants.length) {
+      presetTenants = data.tenants;
+    }
+  } catch (_) { /* fallback to default */ }
+  clear(fieldTenant);
+  for (const t of presetTenants) {
+    fieldTenant.appendChild(el("option", { text: t }));
+  }
+}
+loadPresetTenants();
+
+function showError(msg) {
+  modalError.textContent = msg;
+  modalError.hidden = false;
+}
+function clearError() {
+  modalError.textContent = "";
+  modalError.hidden = true;
+}
+
+function openCreateModal() {
+  modalMode = "create";
+  editTarget = null;
+  modalTitle.textContent = "디바이스 추가";
+  modalSubmit.textContent = "추가";
+  fieldTenant.disabled = false;
+  fieldDeviceId.readOnly = false;
+  fieldDeviceId.value = "";
+  fieldModelName.value = "WF100";
+  fieldIntervalMs.value = "5000";
+  fieldTenant.value = presetTenants[0];
+  clearError();
+  modal.hidden = false;
+  setTimeout(() => fieldDeviceId.focus(), 50);
+}
+
+function openEditModal(device) {
+  modalMode = "edit";
+  editTarget = { tenantId: device.tenantId, deviceId: device.deviceId };
+  modalTitle.textContent = "디바이스 수정";
+  modalSubmit.textContent = "저장";
+  fieldTenant.value = device.tenantId;
+  fieldTenant.disabled = true;
+  fieldDeviceId.value = device.deviceId;
+  fieldDeviceId.readOnly = true;
+  fieldModelName.value = device.modelName || "WF100";
+  fieldIntervalMs.value = device.intervalMs || 5000;
+  clearError();
+  modal.hidden = false;
+  setTimeout(() => fieldIntervalMs.focus(), 50);
+}
+
+function closeModal() {
+  modal.hidden = true;
+  clearError();
+}
+
+$("#btnAddDevice").addEventListener("click", openCreateModal);
+$("#modalClose").addEventListener("click", closeModal);
+$("#modalCancel").addEventListener("click", closeModal);
+modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+
+modalForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  clearError();
+  modalSubmit.disabled = true;
+  try {
+    if (modalMode === "create") {
+      await api("/devices", {
+        method: "POST",
+        body: {
+          tenantId: fieldTenant.value,
+          deviceId: fieldDeviceId.value.trim(),
+          modelName: fieldModelName.value.trim() || "WF100",
+          intervalMs: Number(fieldIntervalMs.value),
+        },
+      });
+      toast("success", "디바이스 추가됨: " + fieldDeviceId.value.trim());
+    } else {
+      await api(`/devices/${encodeURIComponent(editTarget.tenantId)}/${encodeURIComponent(editTarget.deviceId)}`, {
+        method: "PATCH",
+        body: {
+          modelName: fieldModelName.value.trim() || "WF100",
+          intervalMs: Number(fieldIntervalMs.value),
+        },
+      });
+      toast("success", "디바이스 갱신됨: " + editTarget.deviceId);
+    }
+    closeModal();
+    await refreshDevices();
+    await refreshStats();
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    modalSubmit.disabled = false;
+  }
+});
+
+// 확인 모달
+let confirmHandler = null;
+function openConfirm(title, message, onOk) {
+  confirmTitle.textContent = title;
+  clear(confirmMessage);
+  for (const part of message) {
+    if (typeof part === "string") confirmMessage.appendChild(document.createTextNode(part));
+    else confirmMessage.appendChild(part);
+  }
+  confirmHandler = onOk;
+  confirmModal.hidden = false;
+}
+function closeConfirm() {
+  confirmModal.hidden = true;
+  confirmHandler = null;
+}
+confirmCancel.addEventListener("click", closeConfirm);
+confirmModal.addEventListener("click", (e) => { if (e.target === confirmModal) closeConfirm(); });
+confirmOk.addEventListener("click", async () => {
+  const fn = confirmHandler;
+  closeConfirm();
+  if (fn) await fn();
+});
+
+function confirmDeleteDevice(device) {
+  openConfirm(
+    "디바이스 삭제",
+    [
+      "다음 디바이스를 삭제합니다. 발행이 즉시 중단되고 누적 상태도 삭제됩니다.\n",
+      el("br"),
+      el("br"),
+      el("span", { class: "target", text: `${device.tenantId} / ${device.deviceId}` }),
+    ],
+    async () => {
+      try {
+        await api(`/devices/${encodeURIComponent(device.tenantId)}/${encodeURIComponent(device.deviceId)}`, {
+          method: "DELETE",
+        });
+        toast("success", "삭제됨: " + device.deviceId);
+        await refreshDevices();
+        await refreshStats();
+      } catch (err) {
+        toast("error", err.message);
+      }
+    }
+  );
+}
+
+$("#btnDeleteAll").addEventListener("click", () => {
+  openConfirm(
+    "전체 디바이스 삭제",
+    [
+      "모든 테넌트의 모든 디바이스를 삭제합니다. 발행이 멈추고 학생들은 재등록이 필요합니다.\n",
+      el("br"),
+      el("br"),
+      el("span", { class: "target", text: "되돌릴 수 없습니다." }),
+    ],
+    async () => {
+      try {
+        let total = 0;
+        for (const t of presetTenants) {
+          const r = await api(`/tenants/${encodeURIComponent(t)}/devices`, { method: "DELETE" });
+          total += r.removedCount || 0;
+        }
+        toast("success", `전체 삭제 완료 (${total}개)`);
+        await refreshDevices();
+        await refreshStats();
+      } catch (err) {
+        toast("error", err.message);
+      }
+    }
+  );
+});
+
+// ESC 닫기
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    if (!modal.hidden) closeModal();
+    if (!confirmModal.hidden) closeConfirm();
+  }
+});
+
+// 토스트
+function toast(kind, text) {
+  const stack = $("#toastStack");
+  const t = el("div", { class: "toast " + (kind || ""), text });
+  stack.appendChild(t);
+  setTimeout(() => {
+    t.style.transition = "opacity 0.3s";
+    t.style.opacity = "0";
+    setTimeout(() => t.remove(), 300);
+  }, 3000);
+}

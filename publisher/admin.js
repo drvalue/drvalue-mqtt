@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const express = require("express");
 const { pool } = require("./db");
 const store = require("./store");
+const dm = require("./deviceManager");
 
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
@@ -48,6 +49,7 @@ function basicAuth(req, res, next) {
 
 const router = express.Router();
 router.use(basicAuth);
+router.use(express.json());
 
 // 대시보드 정적 파일
 router.use("/", express.static(path.join(__dirname, "public", "admin")));
@@ -112,6 +114,58 @@ router.get("/api/stats", async (req, res) => {
     };
 
     res.json({ tenants: merged, totals: grand });
+  } catch (e) {
+    res.status(500).json({ error: e.code || e.message });
+  }
+});
+
+router.get("/api/preset-tenants", (req, res) => {
+  res.json({ tenants: store.PRESET_TENANTS });
+});
+
+router.post("/api/devices", async (req, res) => {
+  const { tenantId, deviceId, modelName, intervalMs } = req.body || {};
+  try {
+    const device = await dm.create(tenantId, deviceId, modelName, intervalMs);
+    res.status(201).json(device);
+  } catch (e) {
+    const { status, message } = dm.errorToHttp(e);
+    res.status(status).json({ error: message });
+  }
+});
+
+router.patch("/api/devices/:tenantId/:deviceId", async (req, res) => {
+  try {
+    const device = await dm.update(req.params.tenantId, req.params.deviceId, req.body || {});
+    res.json(device);
+  } catch (e) {
+    const { status, message } = dm.errorToHttp(e);
+    res.status(status).json({ error: message });
+  }
+});
+
+router.delete("/api/devices/:tenantId/:deviceId", async (req, res) => {
+  try {
+    const result = await dm.remove(req.params.tenantId, req.params.deviceId);
+    res.json(result);
+  } catch (e) {
+    const { status, message } = dm.errorToHttp(e);
+    res.status(status).json({ error: message });
+  }
+});
+
+router.delete("/api/tenants/:tenantId/devices", async (req, res) => {
+  try {
+    const devices = store.getDevices(req.params.tenantId);
+    if (devices === null) {
+      return res.status(404).json({ error: "존재하지 않는 테넌트입니다" });
+    }
+    const removed = [];
+    for (const d of [...devices]) {
+      await dm.remove(req.params.tenantId, d.deviceId);
+      removed.push(d.deviceId);
+    }
+    res.json({ tenantId: req.params.tenantId, removedCount: removed.length, devices: removed });
   } catch (e) {
     res.status(500).json({ error: e.code || e.message });
   }

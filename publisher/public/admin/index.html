@@ -56,18 +56,79 @@
   </div>
 
   <div class="card">
-    <h2>디바이스 상세</h2>
+    <div class="card-header-row">
+      <h2>디바이스 상세 / 관리</h2>
+      <div class="card-actions">
+        <button class="btn btn-primary" id="btnAddDevice">+ 디바이스 추가</button>
+        <button class="btn btn-danger-outline" id="btnDeleteAll">전체 삭제</button>
+      </div>
+    </div>
     <div class="scroll-x">
       <table id="deviceTable">
         <thead><tr>
           <th>Tenant</th><th>Device</th><th>Model</th><th>Interval</th>
           <th>Battery</th><th>Steps</th><th>LMA</th><th>Calories</th>
-          <th>Usage(s)</th><th>Updated</th>
+          <th>Usage(s)</th><th>Updated</th><th class="th-actions">관리</th>
         </tr></thead>
         <tbody></tbody>
       </table>
     </div>
   </div>
+
+  <!-- 디바이스 추가/수정 모달 -->
+  <div class="modal-backdrop" id="deviceModal" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle">디바이스 추가</h3>
+        <button class="modal-close" id="modalClose" aria-label="닫기">×</button>
+      </div>
+      <form id="deviceForm" class="modal-body">
+        <label>
+          <span>Tenant</span>
+          <select name="tenantId" id="fieldTenant" required></select>
+        </label>
+        <label>
+          <span>Device ID</span>
+          <input name="deviceId" id="fieldDeviceId" type="text" required
+                 pattern="[A-Za-z0-9_\-]+" maxlength="64"
+                 placeholder="예: DEV-001">
+        </label>
+        <label>
+          <span>Model Name</span>
+          <input name="modelName" id="fieldModelName" type="text" value="WF100" maxlength="32">
+        </label>
+        <label>
+          <span>Interval (ms)</span>
+          <input name="intervalMs" id="fieldIntervalMs" type="number"
+                 min="100" max="600000" step="100" value="5000" required>
+        </label>
+        <div class="modal-error" id="modalError" hidden></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="modalCancel">취소</button>
+          <button type="submit" class="btn btn-primary" id="modalSubmit">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 확인 모달 -->
+  <div class="modal-backdrop" id="confirmModal" hidden>
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3 id="confirmTitle">확인</h3>
+      </div>
+      <div class="modal-body">
+        <p id="confirmMessage" class="confirm-msg"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="confirmCancel">취소</button>
+          <button type="button" class="btn btn-danger" id="confirmOk">확인</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 토스트 -->
+  <div class="toast-stack" id="toastStack"></div>
 
   <div class="card">
     <h2>실시간 메세지 로그 — 최근 100건</h2>
