@@ -113,7 +113,10 @@ drvalue/{tenantId}
   - `db.js` — MySQL 풀 + 재연결 재시도 + 스키마 부트스트랩
   - `admin.js` — 강사 대시보드 라우터 (Basic Auth + 모니터링 API)
   - `public/admin/` — 대시보드 SPA (index.html + style.css + app.js, Chart.js CDN)
-- `subscriber/` — Java 17 + Eclipse Paho + Gradle, 참고용 예제
+- `subscriber/` — Java 17 + Eclipse Paho + Gradle, 참고용 단순 예제
+- `drvalue-client/` — **학생 통합용 Java/Spring Boot 라이브러리** (REST 등록 + MQTT 구독 + 자동 설정)
+  - `gradle publishToMavenLocal`로 빌드/배포 → 학생들이 `com.drvalue:drvalue-client:1.0.0` 의존성으로 사용
+  - Spring Boot면 `application.yml`에 `drvalue.broker-url/rest-api-url/tenant-id`만 채우면 자동 동작
 - `docker/`
   - `mosquitto.conf` — 1883 포트, anonymous
   - `mysql/init/` — `setup.sh`가 생성한 SQL이 들어감 (gitignored)

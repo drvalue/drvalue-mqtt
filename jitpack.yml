@@ -1,0 +1,12 @@
+# JitPack 빌드 설정
+# 학생들이 com.github.<user>:drvalue-mqtt:<tag> 로 가져갈 수 있게 함.
+# 루트에는 Java 모듈이 없고 drvalue-client/ 만 빌드함.
+
+jdk:
+  - openjdk17
+
+before_install:
+  - cd drvalue-client
+
+install:
+  - ./gradlew -Pversion=$VERSION publishToMavenLocal
