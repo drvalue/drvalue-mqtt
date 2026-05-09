@@ -1,0 +1,22 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: drvalue-test-app
+
+drvalue:
+  # ⚠️ 본인 환경에 맞게 변경
+  broker-url:   tcp://101.79.16.88:1883
+  rest-api-url: http://101.79.16.88:3000
+  tenant-id:    tenant-1
+  client-id:    test-app-${random.uuid}
+  qos:          1
+  rest-timeout: 10s
+  auto-start:   true
+
+logging:
+  level:
+    com.example.drvalue: INFO
+    com.drvalue.client:  INFO
+    org.eclipse.paho:    WARN
